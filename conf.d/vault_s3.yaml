@@ -1,0 +1,13 @@
+init_config:
+
+instances:
+    -   name: vault-1
+        host: 52.50.223.244
+        port: 8200
+        token: 65c11a38-ea1f-cdf1-08c8-2a47d711babc
+
+accounts:
+  disable_ssl_validation: true
+  id: AKA...ZZ 
+  secret: Xyugfdufudf---juhsvv
+  s3_etag: f6ff685c79ec42ea0ca7b0d1783f0467

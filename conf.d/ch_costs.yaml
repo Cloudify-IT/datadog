@@ -1,0 +1,14 @@
+init_config:
+  min_collection_interval: 300
+
+instances:
+  [{}]
+
+api_key:
+  usr: ***-***-***
+
+urls:
+  costs_instances: https://chapi.cloudhealthtech.com/olap_reports/cost/current/instance?
+  costs_amortized: https://chapi.cloudhealthtech.com/olap_reports/cost/current/amortized?
+  costs_total: https://chapi.cloudhealthtech.com/olap_reports/cost/current?
+  usgae_instances: https://chapi.cloudhealthtech.com/olap_reports/usage/instance?

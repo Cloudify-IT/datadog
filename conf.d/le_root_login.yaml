@@ -1,0 +1,11 @@
+init_config:
+  min_collection_interval: 300
+
+instances:
+  [{}]
+
+api_key:
+  usr: 3450b1e8-0936-407e-a1dc-0d8ebb6fc7cc
+
+urls:
+  cost_service: https://rest.logentries.com/query/logs/c6879e36-fef4-45dd-8029-a5274d61bf92/?

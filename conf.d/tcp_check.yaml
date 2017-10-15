@@ -1,0 +1,15 @@
+init_config:
+
+instances:
+    -   name: jenkins-master
+        host: jenkins-master
+        port: 8080
+        timeout: 1
+        skip_event: true
+
+    -   name: cloudify.tutorial 
+        host: 54.229.34.56  
+        port: 8088
+        timeout: 1
+        skip_event: true
+

@@ -1,0 +1,47 @@
+---
+- hosts: DataDog
+  remote_user: monitor
+  sudo: yes
+  vars_files:
+    - ./default.yml
+ 
+  tasks:
+    - name: Check if Service Exists
+      stat: path=/etc/init.d/datadog-agent
+      register: service_status
+
+    - name: Define "restart_service" var
+      shell: 'echo "{{ restart_service }}"'
+      register: restart_service      
+
+    - name: Define "check_name" var
+      shell: 'echo "{{ check_name }}"'
+      register: check_name
+
+    - name: Define "sys_update" var
+      shell: 'echo "{{ sys_update }}"'
+      register: sys_update
+
+    - name: run apt-get update & upgrade
+      apt: update_cache=yes
+      when: ansible_pkg_mgr == "apt" and sys_update.stdout == "True"
+
+#    - name: run yum update 
+#      yum: update_cache=yes
+#      when: ansible_pkg_mgr == "yum" and sys_update.stdout == "True"
+
+    - name: install DataDog agent
+      shell: DD_API_KEY={{ datadog_api_key }} bash -c "$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)"
+      when: service_status.stat.exists == False
+
+    - name: copy check .yaml
+      copy: src=./conf.d/ dest=/etc/dd-agnet/conf.d/ remote_src=yes directory_mode=yes
+      when: check_name.stdout == "ssh"
+
+    - name: copy check .py
+      copy: src=./check.d/ dest=/opt/datadog-agent/agent/checks.d/ remote_src=yes directory_mode=yes
+      when: check_name.stdout == "ssh"
+
+    - name: restart datadog-agent
+      action: service name=datadog-agent state=restarted
+      when: restart_service.stdout == "True"

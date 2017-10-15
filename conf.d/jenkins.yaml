@@ -1,0 +1,5 @@
+init_config:
+
+instances:
+  - name: jenkins-master
+    jenkins_home: /var/lib/jenkins

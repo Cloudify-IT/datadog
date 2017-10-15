@@ -1,0 +1,8 @@
+init_config:
+  min_collection_interval: 1800
+
+instances:
+    -   name: vault-1
+        host: 52.50.223.244
+        port: 8200
+        token: 1faccc3b-89ad-cfd5-77fa-690424cd35b4

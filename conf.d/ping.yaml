@@ -1,0 +1,5 @@
+init_config:
+
+instances:
+  - 8.8.8.8
+  - google.com

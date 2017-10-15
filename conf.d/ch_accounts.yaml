@@ -1,0 +1,11 @@
+init_config:
+  min_collection_interval: 300
+
+instances:
+  [{}]
+
+api_key:
+  usr: ***-***-***
+
+urls:
+  cost_accounts: https://chapi.cloudhealthtech.com/olap_reports/custom/893353198257?

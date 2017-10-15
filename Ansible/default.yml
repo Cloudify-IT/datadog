@@ -1,0 +1,4 @@
+datadog_api_key: 7b5...6d310
+check_name: ssh
+sys_update: true
+restart_service: true

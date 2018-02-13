@@ -5,18 +5,16 @@ from datetime import datetime
 import yaml
 from checks import AgentCheck
 from keystoneauth1 import session
-from keystoneauth1.identity import v3
+from keystoneauth1.identity import v2
 from novaclient import client as novaclient
 from keystoneclient.v3 import client as keystoneclient
 
 
 def get_password_session(usernamme, password, url, project):
-    auth = v3.Password(auth_url=url,
+    auth = v2.Password(auth_url=url,
                        username=usernamme,
                        password=password,
-                       user_domain_name='Default',
-                       project_name=project,
-                       project_domain_name='Default')
+                       tenant_name=project)
     return session.Session(auth=auth)
 
 

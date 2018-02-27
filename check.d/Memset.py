@@ -1,93 +1,74 @@
 #!/usr/bin/python
 import os
-import urllib2
+import subprocess
 
 import yaml
 import json
 
-# from checks import AgentCheck
-from keystoneauth1 import session
-from keystoneauth1.identity import v3
-from novaclient import client as novaclient
 
+# from checks import AgentCheck
 
 class InvalidResponse(Exception):
     pass
 
 
-def get_password_session(usernamme, password, url, project):
-    auth = v3.Password(auth_url=url,
-                       username=usernamme,
-                       password=password,
-                       user_domain_name='Default',
-                       project_name=project,
-                       project_domain_name='Default')
-    return session.Session(auth=auth)
+def get_project_list():
+    output = subprocess.check_output("openstack project list --long --format=json")
+    projects = json.loads(output)
+    return filter(lambda project: 'ID' in project and 'Name' in project, projects)
 
 
-def get_response(method_name, **kwargs):
-    url = "https://api.memset.com/v1/json/{0}?".format(method_name)
-    for key, value in kwargs.items():
-        url += "{0}={1}&".format(key, value)
-    response = json.loads(urllib2.urlopen(url).read())
-    if 'error_code' in response and response['error_code']:
-        raise response
-    return InvalidResponse(str(response))
+def list_servers(project_name):
+    os.environ['OS_PROJECT_NAME'] = project_name
+    server_list_shell = subprocess.Popen(["openstack", "server", "list", "--long", ",--format=value"],
+                                         stdout=subprocess.PIPE)
+    grep_server_list_shell = subprocess.Popen(["grep", "-v", "SHELVED_OFFLOADED"],
+                                              stdin=server_list_shell.stdout)
+    server_list_shell.stdout.close()
+    output, err = grep_server_list_shell.communicate()
+    if err:
+        raise InvalidResponse(str(err))
+    servers = json.loads(output)
+    return filter(lambda server: 'Status' in server and server['Status'] == 'ACTIVE' and 'Name' in server,
+                  servers)
 
 
-def get_project_list(api_key):
-    projects = get_response(method_name='openstack.list_projects', api_key=api_key)
-    return [projects[key]['project_id'] for key in projects.keys() if 'project_id' in projects[key]]
-
-
-def list_servers(api_key):
-    servers = get_response(method_name='server.list', api_key=api_key)
-    return []
-
-
-def set_global_var(config_file):
+def set_environ_vars(config_file):
     with open(config_file) as config:
         conf_vars = yaml.load(config.read())
-    OS_AUTH_URL = conf_vars['OS_AUTH_URL']
-    OS_USERNAME = conf_vars['OS_USERNAME']
-    OS_PASSWORD = conf_vars['OS_PASSWORD']
-    API_KEY = conf_vars['API_KEY']
+    os.environ['OS_AUTH_URL'] = conf_vars['OS_AUTH_URL']
+    os.environ['OS_USERNAME'] = conf_vars['OS_USERNAME']
+    os.environ['OS_PASSWORD'] = conf_vars['OS_PASSWORD']
+    os.environ['OS_USER_DOMAIN_NAME'] = conf_vars['OS_USER_DOMAIN_NAME']
+    os.environ['OS_REGION_NAME'] = conf_vars['OS_REGION_NAME']
     flavor_count = conf_vars['flavors']
     metric_suffix = conf_vars['metric_suffix']
     project_name = conf_vars['project']
-    global OS_AUTH_URL
-    global OS_USERNAME
-    global OS_PASSWORD
-    global API_KEY
     global flavor_count
     global metric_suffix
     global project_name
 
 
 def get_data(config_file):
-    set_global_var(config_file)
-    projects_names = get_project_list(api_key=API_KEY)
+    set_environ_vars(config_file)
+    projects_names = get_project_list()
     tenants_instances = {}
     total_instances = 0
     for project in projects_names:
         instances_count = 0
-        password_session = get_password_session(OS_USERNAME, OS_PASSWORD,
-                                                OS_AUTH_URL, project)
-        nova = novaclient.Client(version='2.0', session=password_session)
-        instances_list = nova.servers.list()
+        instances = list_servers(project['Name'])
         total_instances += 0
-        tenants_instances[project] = 0
+        tenants_instances[project['Name']] = 0
 
-        for instance in instances_list:
-            if 'ACTIVE' in instance.status:
+        for instance in instances:
+            if 'ACTIVE' == instance['Status']:
                 total_instances += 1
-                tenants_instances[project] += 1
+                tenants_instances[project['Name']] += 1
                 instances_count += 1
-                flavor = \
-                    nova.flavors.get(instance.flavor['id']).name.encode('ascii')
-                try:
+                flavor = instance['Flavor Name']
+                if flavor in flavor_count:
                     flavor_count[flavor] += 1
-                except KeyError:
+                else:
                     flavor_count[flavor] = 1
     tenants_instances['Total'] = total_instances
     return flavor_count, tenants_instances

@@ -5,8 +5,8 @@ from subprocess import check_output
 import yaml
 import json
 
+from checks import AgentCheck
 
-# from checks import AgentCheck
 
 class InvalidResponse(Exception):
     pass
@@ -20,7 +20,7 @@ def get_project_list():
 
 def list_servers(project_name):
     os.environ['OS_PROJECT_NAME'] = project_name
-    output = check_output(["openstack", "server", "list", "--long", ",--format=json"])
+    output = check_output(["openstack", "server", "list", "--long", "--format=json"])
     servers = json.loads(output)
     return filter(lambda server: 'Status' in server and server['Status'] == 'ACTIVE' and 'Name' in server,
                   servers)
@@ -62,24 +62,19 @@ def get_data(config_file):
     return flavor_count, tenants_instances
 
 
-filename = os.path.basename(__file__).split('.')[0]
-config_file = 'Memset.test.yaml'.format(filename)
-flavor_count, tenants_instances = get_data(config_file)
-print()
+class OpenStack_Mon(AgentCheck):
+    def check(self, *args):
+        filename = os.path.basename(__file__).split('.')[0]
+        config_file = '/etc/dd-agent/conf.d/{0}.yaml'.format(filename)
+        flavor_count, tenants_instances = get_data(config_file)
 
-# class OpenStack_Mon(AgentCheck):
-#     def check(self, *args):
-#         filename = os.path.basename(__file__).split('.')[0]
-#         config_file = '/etc/dd-agent/conf.d/{0}.yaml'.format(filename)
-#         flavor_count, tenants_instances = get_data(config_file)
-#
-#         name = '{0}.instances'.format(metric_suffix)
-#         for flavor, num in flavor_count.items():
-#             tag = 'name:{0}'.format(flavor)
-#
-#             self.gauge(name, num, tags=[tag])
-#
-#         name = '{0}.tenants'.format(metric_suffix)
-#         for tenant, num in tenants_instances.items():
-#             tag = 'name:{0}'.format(tenant)
-#             self.gauge(name, num, tags=[tag])
+        name = '{0}.instances'.format(metric_suffix)
+        for flavor, num in flavor_count.items():
+            tag = 'name:{0}'.format(flavor)
+
+            self.gauge(name, num, tags=[tag])
+
+        name = '{0}.tenants'.format(metric_suffix)
+        for tenant, num in tenants_instances.items():
+            tag = 'name:{0}'.format(tenant)
+            self.gauge(name, num, tags=[tag])

@@ -1,45 +1,48 @@
 #!/usr/bin/python
 import os
-from datetime import datetime
+import urllib2
 
 import yaml
-from checks import AgentCheck
+import json
+
+# from checks import AgentCheck
 from keystoneauth1 import session
-from keystoneauth1.identity import v2
+from keystoneauth1.identity import v3
 from novaclient import client as novaclient
-from keystoneclient.v3 import client as keystoneclient
+
+
+class InvalidResponse(Exception):
+    pass
 
 
 def get_password_session(usernamme, password, url, project):
-    auth = v2.Password(auth_url=url,
+    auth = v3.Password(auth_url=url,
                        username=usernamme,
                        password=password,
-                       tenant_name=project)
+                       user_domain_name='Default',
+                       project_name=project,
+                       project_domain_name='Default')
     return session.Session(auth=auth)
 
 
-def get_created_time_time_format(created_time):
-    created_time = (created_time).replace('T', ' ')
-    created_time = created_time.replace('Z', '')
-    created_time = \
-        datetime.strptime(created_time,
-                          '%Y-%m-%d %H:%M:%S')
-    return created_time
+def get_response(method_name, **kwargs):
+    url = "https://api.memset.com/v1/json/{0}?".format(method_name)
+    for key, value in kwargs.items():
+        url += "{0}={1}&".format(key, value)
+    response = json.loads(urllib2.urlopen(url).read())
+    if 'error_code' in response and response['error_code']:
+        raise response
+    return InvalidResponse(str(response))
 
 
-def get_project_names(usernamme, password, url, project_name):
-    password_session = get_password_session(usernamme=usernamme,
-                                            password=password,
-                                            url=url,
-                                            project=project_name)
-    keystone = keystoneclient.Client(session=password_session)
+def get_project_list(api_key):
+    projects = get_response(method_name='openstack.list_projects', api_key=api_key)
+    return [projects[key]['project_id'] for key in projects.keys() if 'project_id' in projects[key]]
 
-    projects_name = []
-    projects_list = keystone.projects.list(user=password_session.get_user_id())
 
-    for project in projects_list:
-        projects_name.append(project.name.encode('ascii'))
-    return projects_name
+def list_servers(api_key):
+    servers = get_response(method_name='server.list', api_key=api_key)
+    return []
 
 
 def set_global_var(config_file):
@@ -48,12 +51,14 @@ def set_global_var(config_file):
     OS_AUTH_URL = conf_vars['OS_AUTH_URL']
     OS_USERNAME = conf_vars['OS_USERNAME']
     OS_PASSWORD = conf_vars['OS_PASSWORD']
+    API_KEY = conf_vars['API_KEY']
     flavor_count = conf_vars['flavors']
     metric_suffix = conf_vars['metric_suffix']
     project_name = conf_vars['project']
     global OS_AUTH_URL
     global OS_USERNAME
     global OS_PASSWORD
+    global API_KEY
     global flavor_count
     global metric_suffix
     global project_name
@@ -61,7 +66,7 @@ def set_global_var(config_file):
 
 def get_data(config_file):
     set_global_var(config_file)
-    projects_names = get_project_names(OS_USERNAME, OS_PASSWORD, OS_AUTH_URL, project_name)
+    projects_names = get_project_list(api_key=API_KEY)
     tenants_instances = {}
     total_instances = 0
     for project in projects_names:
@@ -73,35 +78,39 @@ def get_data(config_file):
         total_instances += 0
         tenants_instances[project] = 0
 
-        if len(instances_list) > 0:
-            for instance in instances_list:
-                if 'ACTIVE' in instance.status:
-                    total_instances += 1
-                    tenants_instances[project] += 1
-                    instances_count += 1
-                    flavor = \
-                        nova.flavors.get(instance.flavor['id']).name.encode('ascii')
-                    try:
-                        flavor_count[flavor] += 1
-                    except KeyError:
-                        flavor_count[flavor] = 1
+        for instance in instances_list:
+            if 'ACTIVE' in instance.status:
+                total_instances += 1
+                tenants_instances[project] += 1
+                instances_count += 1
+                flavor = \
+                    nova.flavors.get(instance.flavor['id']).name.encode('ascii')
+                try:
+                    flavor_count[flavor] += 1
+                except KeyError:
+                    flavor_count[flavor] = 1
     tenants_instances['Total'] = total_instances
     return flavor_count, tenants_instances
 
 
-class OpenStack_Mon(AgentCheck):
-    def check(self, *args):
-        filename = os.path.basename(__file__).split('.')[0]
-        config_file = '/etc/dd-agent/conf.d/{0}.yaml'.format(filename)
-        flavor_count, tenants_instances = get_data(config_file)
+filename = os.path.basename(__file__).split('.')[0]
+config_file = 'Memset.test.yaml'.format(filename)
+flavor_count, tenants_instances = get_data(config_file)
+print()
 
-        name = '{0}.instances'.format(metric_suffix)
-        for flavor, num in flavor_count.items():
-            tag = 'name:{0}'.format(flavor)
-
-            self.gauge(name, num, tags=[tag])
-
-        name = '{0}.tenants'.format(metric_suffix)
-        for tenant, num in tenants_instances.items():
-            tag = 'name:{0}'.format(tenant)
-            self.gauge(name, num, tags=[tag])
+# class OpenStack_Mon(AgentCheck):
+#     def check(self, *args):
+#         filename = os.path.basename(__file__).split('.')[0]
+#         config_file = '/etc/dd-agent/conf.d/{0}.yaml'.format(filename)
+#         flavor_count, tenants_instances = get_data(config_file)
+#
+#         name = '{0}.instances'.format(metric_suffix)
+#         for flavor, num in flavor_count.items():
+#             tag = 'name:{0}'.format(flavor)
+#
+#             self.gauge(name, num, tags=[tag])
+#
+#         name = '{0}.tenants'.format(metric_suffix)
+#         for tenant, num in tenants_instances.items():
+#             tag = 'name:{0}'.format(tenant)
+#             self.gauge(name, num, tags=[tag])

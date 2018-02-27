@@ -1,12 +1,18 @@
 init_config:
+  min_collection_interval: 500
+
 instances:
   [{}]
 
-OS_AUTH_URL: 'https://auth.openstack.memset.com:5000/v2.0'
-OS_USERNAME: 'user'
-OS_PASSWORD: 'password'
+ENV_VARS:
+  OS_AUTH_URL: 'https://auth.openstack.memset.com:5000/v3'
+  OS_USERNAME: 'username'
+  OS_PASSWORD: 'password'
+  OS_USER_DOMAIN_NAME: "Default"
+  OS_REGION_NAME: "reading-a"
+  OS_INTERFACE: "public"
+  OS_IDENTITY_API_VERSION: "3"
 metric_suffix: 'Memset'
-project: ['ospgigasaa1', 'ospgigasaa2', 'ospgigasaa3']
 
 flavors:
     MSOS001: 0

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import os
-import subprocess
+from subprocess import check_output
 
 import yaml
 import json
@@ -13,21 +13,14 @@ class InvalidResponse(Exception):
 
 
 def get_project_list():
-    output = subprocess.check_output("openstack project list --long --format=json")
+    output = check_output(["openstack", "project", "list", "--long", "--format=json"])
     projects = json.loads(output)
     return filter(lambda project: 'ID' in project and 'Name' in project, projects)
 
 
 def list_servers(project_name):
     os.environ['OS_PROJECT_NAME'] = project_name
-    server_list_shell = subprocess.Popen(["openstack", "server", "list", "--long", ",--format=value"],
-                                         stdout=subprocess.PIPE)
-    grep_server_list_shell = subprocess.Popen(["grep", "-v", "SHELVED_OFFLOADED"],
-                                              stdin=server_list_shell.stdout)
-    server_list_shell.stdout.close()
-    output, err = grep_server_list_shell.communicate()
-    if err:
-        raise InvalidResponse(str(err))
+    output = check_output(["openstack", "server", "list", "--long", ",--format=json"])
     servers = json.loads(output)
     return filter(lambda server: 'Status' in server and server['Status'] == 'ACTIVE' and 'Name' in server,
                   servers)
@@ -36,17 +29,12 @@ def list_servers(project_name):
 def set_environ_vars(config_file):
     with open(config_file) as config:
         conf_vars = yaml.load(config.read())
-    os.environ['OS_AUTH_URL'] = conf_vars['OS_AUTH_URL']
-    os.environ['OS_USERNAME'] = conf_vars['OS_USERNAME']
-    os.environ['OS_PASSWORD'] = conf_vars['OS_PASSWORD']
-    os.environ['OS_USER_DOMAIN_NAME'] = conf_vars['OS_USER_DOMAIN_NAME']
-    os.environ['OS_REGION_NAME'] = conf_vars['OS_REGION_NAME']
+    for key, value in conf_vars['ENV_VARS'].items():
+        os.environ[key] = value
     flavor_count = conf_vars['flavors']
     metric_suffix = conf_vars['metric_suffix']
-    project_name = conf_vars['project']
     global flavor_count
     global metric_suffix
-    global project_name
 
 
 def get_data(config_file):

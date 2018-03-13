@@ -8,22 +8,22 @@ import json
 from checks import AgentCheck
 
 
-class InvalidResponse(Exception):
-    pass
-
-
 def get_project_list():
-    output = check_output(["openstack", "project", "list", "--long", "--format=json"])
+    output = check_output(
+        ["openstack", "project", "list", "--long", "--format=json"])
     projects = json.loads(output)
-    return filter(lambda project: 'ID' in project and 'Name' in project, projects)
+    return filter(lambda project: 'ID' in project and 'Name' in project,
+                  projects)
 
 
 def list_servers(project_name):
     os.environ['OS_PROJECT_NAME'] = project_name
-    output = check_output(["openstack", "server", "list", "--long", "--format=json"])
+    output = check_output(
+        ["openstack", "server", "list", "--long", "--format=json"])
     servers = json.loads(output)
-    return filter(lambda server: 'Status' in server and server['Status'] == 'ACTIVE' and 'Name' in server,
-                  servers)
+    return filter(lambda server: 'Status' in server
+                                 and server['Status'] == 'ACTIVE'
+                                 and 'Name' in server, servers)
 
 
 def set_environ_vars(config_file):
@@ -74,7 +74,13 @@ class OpenStack_Mon(AgentCheck):
 
             self.gauge(name, num, tags=[tag])
 
+        project_name_dict = {
+            'tenant_name': 'tenant custom name'
+        }
         name = '{0}.tenants'.format(metric_suffix)
         for tenant, num in tenants_instances.items():
-            tag = 'name:{0}'.format(tenant)
+            if tenant in project_name_dict:
+                tag = 'name:{0}_{1}'.format(tenant, project_name_dict[tenant])
+            else:
+                tag = 'name:{0}'.format(tenant)
             self.gauge(name, num, tags=[tag])

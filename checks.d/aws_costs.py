@@ -4,10 +4,8 @@
 import os
 import yaml
 import json
-import datetime
 import requests
 import numpy as np
-import dateutil.parser
 
 from checks import AgentCheck
 
@@ -25,37 +23,21 @@ def get_data():
           "{0}?api_key={1}".format(ch_report_id, api_key)
     request = requests.get(url=url, headers={"Accept": "application/json"})
     res = json.loads(request.content)
-    days = [
-        (dateutil.parser.parse(day['name']) - datetime.datetime(1970, 1, 1))
-            .total_seconds()
-        for day in res['dimensions'][0]['time']
-        if day['name'] != 'total']
-    service_categories = [
-        service['name'] for service in
-        res['dimensions'][1]['AWS-Service-Category']
-        if service['name'] != 'total']
+    service_categories = [service['name'] for service in
+                          res['dimensions'][1]['AWS-Service-Category']]
     costs_per_service = np.array(res['data'])
     costs_per_service = costs_per_service[0]
     costs_per_service.transpose()
 
-    data_per_service = {}
-    for service in service_categories:
-        data_per_service[service] = []
+    # Each item in costs_per_service is a list with one value
+    data_per_service = dict(zip(
+        service_categories, (i[0] for i in costs_per_service)))
 
-    for i in range(len(service_categories)):
-        data_per_service[service_categories[i]] = list(
-            zip(days, costs_per_service[i:]))
-
-    data_per_service['total'] = list(zip(days, costs_per_service[0:]))
     return data_per_service
 
 
 class Check(AgentCheck):
     def check(self, *args):
         data = get_data()
-        for service, series in data.items():
-            timestamp, cost = series[0]
-            self.gauge(
-                'aws.{}'.format(service),
-                cost[0],
-                tags=['aws_costs'])
+        for service, cost in data.items():
+            self.gauge('aws.{}'.format(service), cost, tags=['aws_costs'])

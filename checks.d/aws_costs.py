@@ -6,6 +6,9 @@ import yaml
 import json
 import requests
 import numpy as np
+import dateutil.parser
+
+from checks import AgentCheck
 
 
 def get_data():
@@ -21,7 +24,8 @@ def get_data():
           "{0}?api_key={1}".format(ch_report_id, api_key)
     request = requests.get(url=url, headers={"Accept": "application/json"})
     res = json.loads(request.content)
-    days = [day['name'] for day in res['dimensions'][0]['time']
+    days = [dateutil.parser.parse(day['name']).isoformat()
+            for day in res['dimensions'][0]['time']
             if day['name'] != 'total']
     service_categories = [
         service['name'] for service in
@@ -47,4 +51,9 @@ class Check(AgentCheck):
     def check(self, *args):
         data = get_data()
         for service, series in data.items():
-            self.gauge('aws_{}'.format(service), series)
+            for timestamp, cost in series:
+                self.gauge(
+                    'aws.{}'.format(service),
+                    cost[0],
+                    tags=['aws_costs'],
+                    timestamp=timestamp)

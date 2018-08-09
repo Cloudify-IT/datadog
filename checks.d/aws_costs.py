@@ -47,6 +47,11 @@ def get_data():
             zip(days, costs_per_service[i:]))
 
     data_per_service['total'] = list(zip(days, costs_per_service[0:]))
+
+    data_per_service['ec2_total'] = \
+        [sum([cost_series[0][1][0]
+              for service, cost_series in data_per_service.items()
+              if service.startswith('ec2')])]
     return data_per_service
 
 
@@ -54,9 +59,8 @@ class Check(AgentCheck):
     def check(self, *args):
         data = get_data()
         for service, series in data.items():
-            for timestamp, cost in series:
-                self.gauge(
-                    'aws.{}'.format(service),
-                    cost[0],
-                    tags=['aws_costs'],
-                    timestamp=timestamp)
+            timestamp, cost = series[0]
+            self.gauge(
+                'aws.{}'.format(service),
+                cost[0],
+                tags=['aws_costs'])

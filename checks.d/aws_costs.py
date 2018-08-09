@@ -47,11 +47,6 @@ def get_data():
             zip(days, costs_per_service[i:]))
 
     data_per_service['total'] = list(zip(days, costs_per_service[0:]))
-
-    data_per_service['ec2_total'] = \
-        [sum([cost_series[0][1][0]
-              for service, cost_series in data_per_service.items()
-              if service.startswith('ec2')])]
     return data_per_service
 
 

@@ -4,6 +4,7 @@
 import os
 import yaml
 import json
+import datetime
 import requests
 import numpy as np
 import dateutil.parser
@@ -24,9 +25,11 @@ def get_data():
           "{0}?api_key={1}".format(ch_report_id, api_key)
     request = requests.get(url=url, headers={"Accept": "application/json"})
     res = json.loads(request.content)
-    days = [dateutil.parser.parse(day['name']).isoformat()
-            for day in res['dimensions'][0]['time']
-            if day['name'] != 'total']
+    days = [
+        (dateutil.parser.parse(day['name']) - datetime.datetime(1970, 1, 1))
+            .total_seconds()
+        for day in res['dimensions'][0]['time']
+        if day['name'] != 'total']
     service_categories = [
         service['name'] for service in
         res['dimensions'][1]['AWS-Service-Category']

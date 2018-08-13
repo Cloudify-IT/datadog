@@ -1,0 +1,8 @@
+init_config:
+  min_collection_interval: 500
+
+instances:
+  [{}]
+
+API_KEY: API_KEY_VALUE
+CLOUDHEALTH_REPORT_ID: ID_OF_REPORT

@@ -26,7 +26,11 @@ def get_data():
     service_categories = [service['name'] for service in
                           res['dimensions'][1]['AWS-Service-Category']]
     costs_per_service = np.array(res['data'])
-    costs_per_service = costs_per_service[-1]
+    for i in range(-1, -len(costs_per_service), -1):
+        if np.count_nonzero(costs_per_service[i] != None) > 0:
+            costs_per_service = costs_per_service[i]
+            break
+
     costs_per_service.transpose()
 
     # Each item in costs_per_service is a list with one value
